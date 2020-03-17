@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -43,7 +45,38 @@ class _QuestionState extends State<Question> {
     return firebaseUser;
   }
 
-  void listenChanges() {}
+  void listenChanges() {
+    list.clear();
+    CollectionReference reference = Firestore.instance
+        .collection('users')
+        .document(_authResult.user.uid)
+        .collection("messages");
+    reference.orderBy("date").snapshots().listen((querySnapshot) {
+      print("Size" + querySnapshot.documentChanges.length.toString());
+      querySnapshot.documentChanges.forEach((change) {
+        list.add(change.document.data['text'].toString());
+        print(change.document.data['text'].toString());
+      });
+    });
+
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlertDialog(
+            title: Text("Alert"),
+            content: Text(list[list.length - 1]),
+            actions: <Widget>[
+              FlatButton(
+                  onPressed: () {
+                    _auth.signOut();
+                    Navigator.of(context).pop();
+                  },
+                  child: Text("OK"))
+            ],
+          );
+        });
+  }
 
   @override
   void dispose() {
@@ -85,7 +118,7 @@ class _QuestionState extends State<Question> {
           height: 20,
         ),
         RaisedButton(
-          onPressed: () {
+          onPressed: () async{
             if (userAge.isNotEmpty) {
               if (isNumeric(userAge)) {
                 documentReference.collection('messages').document().setData({
@@ -99,37 +132,8 @@ class _QuestionState extends State<Question> {
                   'date': '${DateTime.now().toString()}',
                 });
               }
-              //listenChanges();
-
-              CollectionReference reference = Firestore.instance
-                  .collection('users')
-                  .document(_authResult.user.uid)
-                  .collection("messages");
-              reference.orderBy("date").snapshots().listen((querySnapshot) {
-                print("Size" + querySnapshot.documentChanges.length.toString());
-                querySnapshot.documentChanges.forEach((change) {
-                  list.add(change.document.data['text'].toString());
-                  print(change.document.data['text'].toString());
-                });
-
-                showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: Text("Alert"),
-                        content: Text(list[list.length - 1]),
-                        actions: <Widget>[
-                          FlatButton(
-                              onPressed: () {
-                                _auth.signOut();
-                                Navigator.of(context).pop();
-                              },
-                              child: Text("OK"))
-                        ],
-                      );
-                    });
-              });
+              await new Future.delayed(const Duration(seconds : 5));
+              listenChanges();
             }
           },
           child: Text('Submit'),
